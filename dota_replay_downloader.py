@@ -4,6 +4,7 @@ import json
 import urllib2
 import logging
 import sys
+import time
 
 logging.basicConfig(level=logging.WARN,
     format='%(asctime)s %(levelname)s - %(message)s',
@@ -26,6 +27,7 @@ class dotaPlayer(object):
         self.userID = userID
         self.matchesDetails = {}
         self.matchesList = []
+        self.finalMatchList = []
 
     def _getMatchHistory(self):
         """Given get the match history for <userID>. <userID> is expected to be a
@@ -40,34 +42,26 @@ class dotaPlayer(object):
             self.matchesDetails[i['match_id']] = { 
                     'start_time' : i['start_time'],
                     'cluster' : ''}
-
-
-    def _getMatchDetails(self):
-        """Get the cluster details for the match, so we can download the replay"""
-        log.debug('in dota_Player._getMatchDetails()')
-
-        matchList = []
+        last_week = int(round(time.time() - 604800))
         for match in self.matchesDetails:
-            matchList.append(match)
-        matchDetails = {}
-        if len(matchList) > 5:
-            print "Limitting to only 5 matches. %i matches were found" % len(matchList)
-            matchList = matchList[:5]
-
-        for matchID in matchList:
-            log.debug('opening url: https://api.steampowered.com/IDOTA2Match_570/GetMatchDetails/v001/?key=%s&match_id=%s' % (self.steamAPIKey, matchID))
-            matchDetailsJSON = urllib2.urlopen("https://api.steampowered.com/IDOTA2Match_570/GetMatchDetails/v001/?key=%s&match_id=%s" % (self.steamAPIKey, matchID))
-            matchDetailsDict = json.loads(matchDetailsJSON.read())
-            self.matchesDetails[matchID]['cluster'] = matchDetailsDict['result']['cluster']
+            if self.matchesDetails[match['start_time']] < last_week:
+                self.matchesList.append(match)
+        if len(self.matchesList) > 5:
+            print "limitting to 5 matches. %s matches found in the last week" % len(self.matchesList)
+            self.finalMatchList = self.matchesList[:5]
+        else:
+            self.finalMatchList = self.matchesList
 
 
     def _getMatchReplay(self):
         """Download the replay for the match"""
         log.debug('in dotaPlayer._getMatchReplay()')
 
-        for match in self.matchesDetails:
+        for match in self.matchesList:
             log.debug('opening url: https://rjackson.me/tools/matchurls?matchid=%s' % match)
-            urllib2.urlopen('https://rjackson.me/tools/matchurls?matchid=%s' % match)
+            download_link = urllib2.urlopen('https://rjackson.me/tools/matchurls?matchid=%s' % match)
+            print download_link
+            raw_input()
 
 
 if __name__ == "__main__":
